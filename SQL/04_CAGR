@@ -1,0 +1,33 @@
+WITH first_price AS(
+SELECT symbol, date AS start_date, close AS start_price, 
+ROW_NUMBER() OVER(
+PARTITION BY symbol
+ORDER BY date ASC
+) AS rn
+FROM nifty50_data
+),
+last_price AS(
+SELECT symbol, date AS end_date, close AS end_price, 
+ROW_NUMBER() OVER(
+PARTITION BY symbol
+ORDER BY date DESC
+) AS rn 
+FROM nifty50_data
+),
+price_data AS (
+SELECT f.symbol,f.start_price,l.end_price,f.start_date,l.end_date,
+(l.end_date - f.start_date) / 365.25 AS years
+FROM first_price f
+JOIN last_price l
+ON f.symbol = l.symbol
+WHERE f.rn = 1 
+AND l.rn = 1
+)
+SELECT symbol, start_price, end_price, years,
+ROUND(
+(
+POWER(end_price/start_price, 1.0/years) - 1
+) * 100,2
+) AS cagr_percent
+FROM price_data
+ORDER BY cagr_percent DESC;
